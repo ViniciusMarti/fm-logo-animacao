@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/fernandomarques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;800&display=swap" rel="stylesheet">
+<style>
+  :root { --size: 10.4vw; --dur: 480ms; }
+  html, body { margin: 0; height: 100%; background: #fff; }
+  body { display: flex; align-items: center; justify-content: center; }
+  .logo {
+    position: relative; width: 100%; height: calc(var(--size) * 1.55);
+    font-family: 'Figtree', sans-serif; font-size: var(--size);
+    line-height: 1; color: #000; letter-spacing: -0.04em;
+  }
+  .ch {
+    position: absolute; top: 0.2em; left: 0; white-space: pre;
+    transition: left var(--dur) cubic-bezier(.65,0,.35,1),
+                opacity var(--dur) ease, transform var(--dur) ease;
+    will-change: left, opacity, transform;
+  }
+  .b { font-weight: 800; }
+  .l { font-weight: 300; }
+  .ch.out { opacity: 0; transform: scaleX(.2); }
+</style>
+</head>
+<body>
+<div class="logo" id="logo"></div>
+<script>
+// [id, char, weight]
+const T = [
+  ['sl','/','b'], ['f','f','b'], ['e1','e','b'], ['r1','r','b'], ['n1','n','b'],
+  ['a1','a','b'], ['n2','n','b'], ['d1','d','b'], ['o','o','b'],
+  ['m1','m','l'], ['a2','a','l'], ['r2','r','l'], ['q','q','l'], ['u','u','l'],
+  ['e2','e','l'], ['s','s','l'],
+  ['dot','.','l'], ['mB','m','b'], ['dd','d','l'], ['de','e','l'], ['dv','v','l']
+];
+const STATES = [
+  { ids: ['sl','f','e1','r1','n1','a1','n2','d1','o','m1','a2','r2','q','u','e2','s'], hold: 3150 },
+  { ids: ['sl','f','r1','n1','d1','dot','m1','r2','q','s'],                           hold: 3230 },
+  { ids: ['sl','f','mB','dot','dd','de','dv'],                                         hold: 3230 },
+  { ids: ['sl','f','e1','r1','n1','a1','n2','d1','o','m1','a2','r2','q','u','e2','s'], hold: 7260 },
+];
+const TRANS = 480; // 12 frames x 40ms
+
+const logo = document.getElementById('logo');
+const els = {};
+T.forEach(([id, c, w]) => {
+  const s = document.createElement('span');
+  s.className = `ch ${w} out`; s.textContent = c;
+  logo.appendChild(s); els[id] = s;
+});
+
+function widthOf(id) {
+  // offsetWidth = layout width, unaffected by the scaleX transform/transition
+  return els[id].offsetWidth;
+}
+
+function apply(state) {
+  const ls = parseFloat(getComputedStyle(logo).letterSpacing) || 0;
+  const widths = state.ids.map(widthOf);
+  const total = widths.reduce((a, b) => a + b, 0);
+  let x = (logo.clientWidth - total) / 2;
+  const pos = {};
+  state.ids.forEach((id, i) => { pos[id] = x; x += widths[i]; });
+  // hidden letters collapse toward the next visible neighbour
+  let next = x;
+  for (let i = T.length - 1; i >= 0; i--) {
+    const id = T[i][0];
+    if (id in pos) { next = pos[id]; continue; }
+    els[id].style.left = next + 'px';
+    els[id].classList.add('out');
+  }
+  state.ids.forEach(id => {
+    els[id].style.left = pos[id] + 'px';
+    els[id].classList.remove('out');
+  });
+}
+
+let idx = 0;
+function loop() {
+  apply(STATES[idx]);
+  const wait = STATES[idx].hold + TRANS;
+  idx = (idx + 1) % STATES.length;
+  setTimeout(loop, wait);
+}
+
+document.fonts.ready.then(() => {
+  // first frame without transition
+  logo.querySelectorAll('.ch').forEach(e => e.style.transition = 'none');
+  const start = (parseInt(location.hash.slice(1)) || 0) % STATES.length;
+  apply(STATES[start]);
+  logo.offsetWidth;
+  logo.querySelectorAll('.ch').forEach(e => e.style.transition = '');
+  idx = (start + 1) % STATES.length;
+  setTimeout(loop, STATES[start].hold);
+});
+addEventListener('resize', () => apply(STATES[(idx + STATES.length - 1) % STATES.length]));
+</script>
+</body>
+</html>
